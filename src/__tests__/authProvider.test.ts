@@ -58,14 +58,14 @@ describe('PartnerAppAuthProvider', () => {
     it('should throw error when AWS_PARTNER_APP_ARN is not set', () => {
       delete process.env.AWS_PARTNER_APP_ARN;
       expect(() => new PartnerAppAuthProvider()).toThrow(
-        'Must specify the AWS_PARTNER_APP_ARN environment variable'
+        'Environment variable PARTNER_APP_ARN is required'
       );
     });
 
     it('should throw error when AWS_PARTNER_APP_ARN is invalid', () => {
       process.env.AWS_PARTNER_APP_ARN = 'invalid-arn';
       expect(() => new PartnerAppAuthProvider()).toThrow(
-        'Must specify a valid AWS_PARTNER_APP_ARN environment variable'
+        'Invalid ARN format'
       );
     });
   });

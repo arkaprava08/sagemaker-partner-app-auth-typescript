@@ -1,69 +1,37 @@
-import { AwsCredentialIdentity, Checksum, ChecksumConstructor } from '@aws-sdk/types';
-import { SignatureV4 } from '@aws-sdk/signature-v4';
+import { SignatureV4 } from "@aws-sdk/signature-v4";
+import { AwsCredentialIdentity, Credentials } from "@aws-sdk/types";
+import { PartnerAppAuthUtils, SignedRequest } from "./authUtils";
+import * as dotenv from 'dotenv';
+import { Sha256 } from "@aws-crypto/sha256-js";
 import { fromNodeProviderChain } from '@aws-sdk/credential-providers';
-import { createHash } from 'crypto';
-import { PartnerAppAuthUtils, SignedRequest } from './authUtils';
 
-const SERVICE_NAME = 'sagemaker';
-const AWS_PARTNER_APP_ARN_REGEX = /arn:aws[a-z\-]*:sagemaker:[a-z0-9\-]*:[0-9]{12}:partner-app\/.*/;
+dotenv.config();
 
-class Sha256Hash implements Checksum {
-  private hash;
-
-  constructor() {
-    this.hash = createHash('sha256');
-  }
-
-  update(data: Uint8Array): this {
-    this.hash.update(data);
-    return this;
-  }
-
-  async digest(): Promise<Uint8Array> {
-    return Promise.resolve(this.hash.digest());
-  }
-
-  reset(): this {
-    this.hash = createHash('sha256');
-    return this;
-  }
-}
-
-const Sha256Constructor = class {
-  constructor() {
-    return new Sha256Hash();
-  }
-} as ChecksumConstructor;
+const SERVICE_NAME = "sagemaker";
+const AWS_PARTNER_APP_ARN_REGEX = /^arn:aws[a-z\-]*:sagemaker:[a-z0-9\-]*:[0-9]{12}:partner-app\/.*/;
 
 export class PartnerAppAuthProvider {
   private appArn: string;
   private region: string;
-  private credentialProvider: () => Promise<AwsCredentialIdentity>;
   private sigv4: SignatureV4;
+  private credentialProvider: () => Promise<AwsCredentialIdentity>;
 
   constructor(credentials?: AwsCredentialIdentity) {
-    this.appArn = process.env.AWS_PARTNER_APP_ARN || '';
-    if (!this.appArn) {
-      throw new Error('Must specify the AWS_PARTNER_APP_ARN environment variable');
-    }
+    const appArn = process.env["AWS_PARTNER_APP_ARN"];
+    if (!appArn) throw new Error(`Environment variable PARTNER_APP_ARN is required`);
+    if (!AWS_PARTNER_APP_ARN_REGEX.test(appArn)) throw new Error("Invalid ARN format");
 
-    const appArnRegexMatch = this.appArn.match(AWS_PARTNER_APP_ARN_REGEX);
-    if (!appArnRegexMatch) {
-      throw new Error('Must specify a valid AWS_PARTNER_APP_ARN environment variable');
-    }
-
-    const splitArn = this.appArn.split(':');
-    this.region = splitArn[3];
-
+    this.appArn = appArn;
+    const region = appArn.split(":")[3];
+    this.region = region;
     this.credentialProvider = credentials
       ? () => Promise.resolve(credentials)
       : fromNodeProviderChain();
-
     this.sigv4 = new SignatureV4({
-      credentials: this.credentialProvider,
-      region: this.region,
-      service: SERVICE_NAME,
-      sha256: Sha256Constructor,
+        credentials: this.credentialProvider,
+        region: this.region,
+        service: SERVICE_NAME,
+        sha256: Sha256,
     });
   }
 
@@ -71,9 +39,9 @@ export class PartnerAppAuthProvider {
     url: string,
     method: string,
     headers: Record<string, string>,
-    body: Buffer | string | null
-  ): Promise<SignedRequest> {
-    return PartnerAppAuthUtils.getSignedRequest(
+    body?: Buffer | string | null
+  ) : Promise<SignedRequest> {
+    return await PartnerAppAuthUtils.getSignedRequest(
       this.sigv4,
       this.appArn,
       url,
@@ -88,12 +56,12 @@ export class PartnerAppAuthProvider {
       const { url, headers } = await this.getSignedRequest(
         config.url,
         config.method,
-        config.headers,
+        config.headers || {},
         config.data
       );
       config.url = url;
-      config.headers = headers;
+      config.headers = { ...config.headers, ...headers };
       return config;
     };
   }
-} 
+}

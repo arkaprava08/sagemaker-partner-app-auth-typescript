@@ -1,6 +1,3 @@
-import * as dotenv from "dotenv";
-dotenv.config();
-
 import axios from "axios";
 import { PartnerAppAuthProvider } from "./authProvider";
 
@@ -8,7 +5,7 @@ import { PartnerAppAuthProvider } from "./authProvider";
 const url = "https://app-ABCDEFGHIJKL.partner-app.us-west-2.sagemaker.aws/clientlib/isAlive/ver";
 
 const run = async () => {
-  const authProvider = new PartnerAppAuthProvider();
+  const authProvider = new PartnerAppAuthProvider({appARN: "add your APP ARN here"});
   const signedRequest = await authProvider.getSignedRequest(
     url,
     "GET",

@@ -16,13 +16,13 @@ export class PartnerAppAuthProvider {
   private sigv4: SignatureV4;
   private credentialProvider: () => Promise<AwsCredentialIdentity>;
 
-  constructor(credentials?: AwsCredentialIdentity) {
-    const appArn = process.env["AWS_PARTNER_APP_ARN"];
-    if (!appArn) throw new Error(`Environment variable PARTNER_APP_ARN is required`);
-    if (!AWS_PARTNER_APP_ARN_REGEX.test(appArn)) throw new Error("Invalid ARN format");
+  constructor(params: {appARN: string}, credentials?: AwsCredentialIdentity) {
+    const appARN = params.appARN;
+    if (!appARN) throw new Error(`Environment variable PARTNER_APP_ARN is required`);
+    if (!AWS_PARTNER_APP_ARN_REGEX.test(appARN)) throw new Error("Invalid ARN format");
 
-    this.appArn = appArn;
-    const region = appArn.split(":")[3];
+    this.appArn = appARN;
+    const region = this.appArn.split(":")[3];
     this.region = region;
     this.credentialProvider = credentials
       ? () => Promise.resolve(credentials)
